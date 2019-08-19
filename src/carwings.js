@@ -53,7 +53,7 @@ import querystring from "querystring";
 import winston from "winston";
 
 // Setup logging
-const logger = winston.createLogger({
+export const logger = winston.createLogger({
   level: "debug",
   format: winston.format.simple(),
   transports: [new winston.transports.Console()]
