@@ -48,6 +48,15 @@ describe("getSession", () => {
     });
 
     describe("returns undefined when", () => {
+      it("post raises an exception", async () => {
+        sandbox.stub(axios, "post").throws("Error");
+
+        const session = carwings.getSession("name", "pass", "region");
+        const result = await session.request("ENDPOINT", {});
+
+        expect(result).toBeUndefined();
+      });
+
       it("request returns INVALID PARAMS", async () => {
         const resolved = new Promise(r =>
           r({
@@ -104,6 +113,29 @@ describe("getSession", () => {
 
         expect(result).toBeUndefined();
       });
+    });
+
+    it("posts to correct endpoint, passes along parameters, appends required parameters", async () => {
+      const resolved = new Promise(r =>
+        r({
+          data: {
+            status: 200,
+            message: "success",
+            baseprm: "SOME_BASE_PRM"
+          }
+        })
+      );
+      const post = sandbox.stub(axios, "post").returns(resolved);
+
+      const session = carwings.getSession("name", "pass", "region");
+      await session.request("ENDPOINT", { test: "one" });
+
+      expect(post.getCall(0).args[0]).toBe(`${carwings.BASE_URL}ENDPOINT`);
+      expect(post.getCall(0).args[1]).toContain("test=one");
+      expect(post.getCall(0).args[1]).toContain(
+        `initial_app_str=${carwings.INITIAL_APP_STR}`
+      );
+      expect(post.getCall(0).args[1]).toContain("custom_sessionid=");
     });
   });
 });

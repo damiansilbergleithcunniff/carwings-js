@@ -59,9 +59,9 @@ export const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
-const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
-const DEFAULT_REGION_CODE = "NNA";
-const INITIAL_APP_STR = "9s5rfKVuMrT03RtzajWNcA";
+export const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
+export const DEFAULT_REGION_CODE = "NNA";
+export const INITIAL_APP_STR = "9s5rfKVuMrT03RtzajWNcA";
 
 export const getSession = (
   username,
