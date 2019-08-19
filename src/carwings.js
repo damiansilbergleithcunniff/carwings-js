@@ -63,7 +63,11 @@ const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
 const DEFAULT_REGION_CODE = "NNA";
 const INITIAL_APP_STR = "9s5rfKVuMrT03RtzajWNcA";
 
-const getSession = (username, password, region = DEFAULT_REGION_CODE) => {
+export const getSession = (
+  username,
+  password,
+  region = DEFAULT_REGION_CODE
+) => {
   const session = {
     username,
     password,
@@ -108,7 +112,7 @@ const getSession = (username, password, region = DEFAULT_REGION_CODE) => {
      * problems. Please try again later.</p>
      * </body></html>
      */
-    if (typeof res.data === "string") {
+    if (!res.data || typeof res.data === "string") {
       logger.error("Invalid JSON returned");
       return undefined;
     }
@@ -128,20 +132,6 @@ const getSession = (username, password, region = DEFAULT_REGION_CODE) => {
     return res.data;
   };
 
-  return {
-    session,
-    request
-  };
+  session.request = request;
+  return session;
 };
-
-const test = async () => {
-  const x = getSession("user@example.com", "SOMEPASS");
-  const result = await x.request("InitialApp_v2.php", {
-    RegionCode: x.session.regionCode,
-    lg: "en-US"
-  });
-
-  logger.info(`result: ${JSON.stringify(result)}`);
-};
-
-test().then();
