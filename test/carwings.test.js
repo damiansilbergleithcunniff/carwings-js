@@ -22,31 +22,13 @@ describe("getSession", () => {
       expect(session.regionCode).toBe("three");
       expect(session.loggedIn).toBe(false);
       expect(session.customSessionId).toBe(null);
+
+      const sessionWithDefault = carwings.getSession("four", "five");
+      expect(sessionWithDefault.regionCode).toBe(carwings.DEFAULT_REGION_CODE);
     });
   });
 
   describe("request", () => {
-    it("succeeds, returns result", async () => {
-      const resolved = new Promise(r =>
-        r({
-          data: {
-            status: 200,
-            message: "success",
-            baseprm: "SOME_BASE_PRM"
-          }
-        })
-      );
-      sandbox.stub(axios, "post").returns(resolved);
-
-      const session = carwings.getSession("name", "pass", "region");
-      const result = await session.request("ENDPOINT", {});
-
-      expect(result).not.toBeUndefined();
-      expect(result.status).toBe(200);
-      expect(result.message).toBe("success");
-      expect(result.baseprm).toBe("SOME_BASE_PRM");
-    });
-
     describe("returns undefined when", () => {
       it("post raises an exception", async () => {
         sandbox.stub(axios, "post").throws("Error");
@@ -115,6 +97,27 @@ describe("getSession", () => {
       });
     });
 
+    it("succeeds, returns result", async () => {
+      const resolved = new Promise(r =>
+        r({
+          data: {
+            status: 200,
+            message: "success",
+            baseprm: "SOME_BASE_PRM"
+          }
+        })
+      );
+      sandbox.stub(axios, "post").returns(resolved);
+
+      const session = carwings.getSession("name", "pass", "region");
+      const result = await session.request("ENDPOINT", {});
+
+      expect(result).not.toBeUndefined();
+      expect(result.status).toBe(200);
+      expect(result.message).toBe("success");
+      expect(result.baseprm).toBe("SOME_BASE_PRM");
+    });
+
     it("posts to correct endpoint, passes along parameters, appends required parameters", async () => {
       const resolved = new Promise(r =>
         r({
@@ -136,6 +139,25 @@ describe("getSession", () => {
         `initial_app_str=${carwings.INITIAL_APP_STR}`
       );
       expect(post.getCall(0).args[1]).toContain("custom_sessionid=");
+    });
+
+    it("reuses session when available", async () => {
+      const resolved = new Promise(r =>
+        r({
+          data: {
+            status: 200,
+            message: "success",
+            baseprm: "SOME_BASE_PRM"
+          }
+        })
+      );
+      const post = sandbox.stub(axios, "post").returns(resolved);
+
+      const session = carwings.getSession("name", "pass", "region");
+      session.customSessionId = "EXISTING_ID";
+      await session.request("ENDPOINT", { test: "one" });
+
+      expect(post.getCall(0).args[1]).toContain("custom_sessionid=EXISTING_ID");
     });
   });
 });
