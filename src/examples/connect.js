@@ -11,9 +11,9 @@ const logger = winston.createLogger({
 
 const session = getSession(config.username, config.password);
 session
-  .request("InitialApp_v2.php", {
-    RegionCode: session.regionCode,
-    lg: "en-US"
+  .connect()
+  .catch(er => {
+    logger.error(`failed: ${er}`);
   })
   .then(result => {
     logger.info(`result: ${JSON.stringify(result)}`);
