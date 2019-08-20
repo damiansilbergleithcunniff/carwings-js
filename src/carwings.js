@@ -48,6 +48,7 @@ property. If there was an error communicating with the vehicle, it seems that
 this field will contain the value "ELECTRIC_WAVE_ABNORMAL". Odd.
 */
 
+import { createCipheriv } from "crypto";
 import axios from "axios";
 import querystring from "querystring";
 import winston from "winston";
@@ -62,6 +63,20 @@ export const logger = winston.createLogger({
 export const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
 export const DEFAULT_REGION_CODE = "NNA";
 export const INITIAL_APP_STR = "9s5rfKVuMrT03RtzajWNcA";
+
+const parseCarwingsInitialAppResponse = data => {
+  const parsedResponse = {
+    baseprm: data.baseprm
+  };
+  return parsedResponse;
+};
+
+const encryptBlowfishECB = (key, text) => {
+  const cipher = createCipheriv("bf-ecb", key, "");
+  let encrypted = cipher.update(text, "utf-8", "base64");
+  encrypted += cipher.final("base64");
+  return encrypted;
+};
 
 export const getSession = (
   username,
@@ -132,6 +147,31 @@ export const getSession = (
     return res.data;
   };
 
+  const connect = async () => {
+    session.customSessionId = null;
+    session.loggedIn = false;
+
+    const initialAppResponse = await request("InitialApp_v2.php", {
+      RegionCode: session.regionCode,
+      lg: "en-US"
+    });
+
+    const parsedInitial = parseCarwingsInitialAppResponse(initialAppResponse);
+    const encryptedPassword = encryptBlowfishECB(
+      parsedInitial.baseprm,
+      session.password
+    );
+
+    const loginResponse = await request("UserLoginRequest.php", {
+      RegionCode: session.regionCode,
+      UserId: session.username,
+      Password: encryptedPassword
+    });
+
+    return loginResponse;
+  };
+
   session.request = request;
+  session.connect = connect;
   return session;
 };

@@ -160,4 +160,6 @@ describe("getSession", () => {
       expect(post.getCall(0).args[1]).toContain("custom_sessionid=EXISTING_ID");
     });
   });
+
+  describe("connect", () => {});
 });
