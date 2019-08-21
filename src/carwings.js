@@ -64,11 +64,69 @@ export const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
 export const DEFAULT_REGION_CODE = "NNA";
 export const INITIAL_APP_STR = "9s5rfKVuMrT03RtzajWNcA";
 
-const parseCarwingsInitialAppResponse = data => {
-  const parsedResponse = {
-    baseprm: data.baseprm
+const parseCarwingsResponse = data => {
+  const opResult = data.operationResult || data.OperationResult;
+
+  // seems to indicate that the vehicle cannot be reached
+  if (opResult === "ELECTRIC_WAVE_ABNORMAL") {
+    logger.error("could not establish communications with vehicle");
+    throw Error("could not establish communications with vehicle");
+  }
+
+  // There's some private functions which end up as part of "self"
+  // I'm not going to implement them until I know what they're for.
+  const carwingsResponse = {
+    setCruisingRanges: () => {
+      throw Error("Not Implemented");
+    },
+    setTimestamp: () => {
+      throw Error("Not Implemented");
+    }
   };
-  return parsedResponse;
+
+  return carwingsResponse;
+};
+
+const parseCarwingsInitialAppResponse = data => {
+  const intialAppResponse = parseCarwingsResponse(data);
+  intialAppResponse.baseprm = data.baseprm;
+  return intialAppResponse;
+};
+
+const parseCarwingsLoginResponse = data => {
+  const response = parseCarwingsResponse(data);
+
+  const { profile } = data.vehicle;
+  response.gdcUserId = profile.gdcUserId;
+  response.dcmId = profile.dcmId;
+  response.vin = profile.vin;
+
+  // vehicleInfo block may be top level, or contained in a VehicleInfoList object;
+  // why it's sometimes one way and sometimes another is not clear.
+  const vehicleInfo = data.VehicleInfoList
+    ? data.VehicleInfoList.vehicleInfo
+    : data.vehicleInfo;
+  response.nickname = vehicleInfo[0].nickname;
+  response.customSessionId = vehicleInfo[0].custom_sessionid;
+
+  const customerInfo = data.CustomerInfo;
+  response.tz = customerInfo.Timezone;
+  response.language = customerInfo.Language;
+  response.userVehicleBoundTime = customerInfo.VehicleInfo.UserVehicleBoundTime;
+
+  response.leafs = [
+    {
+      vin: response.vin,
+      nickname: response.nickname,
+      boundTime: response.userVehicleBoundTime
+    }
+  ];
+
+  return response;
+};
+
+const parseCarwingsBatteryStatusResponse = data => {
+  throw Error(`-- Not implemented -- ${data}`);
 };
 
 const encryptBlowfishECB = (key, text) => {
@@ -76,6 +134,54 @@ const encryptBlowfishECB = (key, text) => {
   let encrypted = cipher.update(text, "utf-8", "base64");
   encrypted += cipher.final("base64");
   return encrypted;
+};
+
+const getLeafRemote = (session, leafData) => {
+  const makeRequestParms = additionalParms => {
+    const requestParms = {
+      RegionCode: session.regionCode,
+      lg: session.language,
+      DCMID: session.dcmId,
+      VIN: leafData.vin,
+      tz: session.tz
+    };
+
+    return Object.assign(requestParms, additionalParms);
+  };
+
+  const leafRemote = {
+    session,
+    vin: leafData.vin,
+    nickname: leafData.nickname,
+    boundTime: leafData.boundTime,
+    requestUpdate: async () => {
+      // TODO: should be requestWithRetry
+      const response = await session.request(
+        "BatteryStatusCheckRequest.php",
+        makeRequestParms({ UserId: session.gdcUserId })
+      );
+      return response.resultKey;
+    },
+    getStatusFromUpdate: async resultKey => {
+      // TODO: should be requestWithRetry
+      const response = await session.request(
+        "BatteryStatusCheckResultRequest.php",
+        makeRequestParms({ resultKey })
+      );
+      // responseFlag will be "1" if a response has been returned; else "0".
+      // As of Dec 2018 responseFlag is always returning 0!
+      if (response.responseFlag === "1") {
+        return parseCarwingsBatteryStatusResponse(response);
+      }
+      logger.warn("responseFlag === 0");
+      logger.warn(`response: ${JSON.stringify(response, null, 2)}`);
+
+      return undefined;
+    }
+  };
+  logger.info(`created leafRemote ${leafRemote.vin}/${leafRemote.nickname}`);
+
+  return leafRemote;
 };
 
 export const getSession = (
@@ -108,7 +214,9 @@ export const getSession = (
       res = await axios.post(url, querystring.stringify(params));
       logger.debug(`Response config: ${JSON.stringify(res.config, null, 2)}`);
       logger.debug(`Response HTTP Status Code: ${res.status}`);
-      logger.debug(`Response HTTP Response Body: ${JSON.stringify(res.data)}`);
+      logger.debug(
+        `Response HTTP Response Body: ${JSON.stringify(res.data, null, 2)}`
+      );
     } catch (ex) {
       logger.warn(`HTTP Request Failed`);
       return undefined;
@@ -168,7 +276,22 @@ export const getSession = (
       Password: encryptedPassword
     });
 
-    return loginResponse;
+    const parsedLogin = parseCarwingsLoginResponse(loginResponse);
+    session.customSessionId = parsedLogin.customSessionId;
+    session.gdcUserId = parsedLogin.gdcUserId;
+    session.dcmId = parsedLogin.dcmId;
+    session.tz = parsedLogin.tz;
+    session.language = parsedLogin.language;
+
+    session.leafRemote = getLeafRemote(session, parsedLogin.leafs[0]);
+
+    logger.debug(`session: ${JSON.stringify(session, null, 2)}`);
+    logger.debug(`vin ${parsedLogin.vin}`);
+    logger.debug(`nickname ${parsedLogin.nickname}`);
+
+    session.loggedIn = true;
+
+    return parsedLogin;
   };
 
   session.request = request;
