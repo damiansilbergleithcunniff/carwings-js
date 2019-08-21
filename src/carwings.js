@@ -52,13 +52,15 @@ import { createCipheriv } from "crypto";
 import axios from "axios";
 import querystring from "querystring";
 import winston from "winston";
+import moment from "moment";
 
-// Setup logging
-export const logger = winston.createLogger({
-  level: "debug",
-  format: winston.format.simple(),
-  transports: [new winston.transports.Console()]
-});
+export const logger = winston;
+// // Setup logging
+// export const logger = winston.createLogger({
+//   level: "debug",
+//   format: winston.format.simple(),
+//   transports: [new winston.transports.Console()]
+// });
 
 export const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
 export const DEFAULT_REGION_CODE = "NNA";
@@ -73,15 +75,19 @@ const parseCarwingsResponse = data => {
     throw Error("could not establish communications with vehicle");
   }
 
-  // There's some private functions which end up as part of "self"
-  // I'm not going to implement them until I know what they're for.
-  const carwingsResponse = {
-    setCruisingRanges: () => {
-      throw Error("Not Implemented");
-    },
-    setTimestamp: () => {
-      throw Error("Not Implemented");
-    }
+  const carwingsResponse = {};
+  carwingsResponse.setCruisingRanges = (
+    status,
+    offKey = "cruisingRangeAcOff",
+    onKey = "crusingRangeAcOn"
+  ) => {
+    carwingsResponse.cruisingRangeAcOffKm = status[offKey]
+      ? status[offKey] / 1000
+      : status[onKey] / 1000;
+  };
+  carwingsResponse.setTimestamp = status => {
+    // TODO: parse the datetime
+    carwingsResponse.timestamp = new Date(status.timeStamp).toISOString();
   };
 
   return carwingsResponse;
@@ -126,7 +132,33 @@ const parseCarwingsLoginResponse = data => {
 };
 
 const parseCarwingsBatteryStatusResponse = data => {
-  throw Error(`-- Not implemented -- ${data}`);
+  parseCarwingsResponse(data);
+  throw Error(`-- Not implemented -- `);
+};
+
+const parseCarwingsStartClimateControlResponse = data => {
+  const climateResponse = parseCarwingsResponse(data);
+  climateResponse.setTimestamp(data);
+  climateResponse.setCruisingRanges(data);
+
+  climateResponse.operationResult = data.operationResult;
+  climateResponse.acContinueTime = moment(new Date())
+    .add(data.acContinueTime, "m")
+    .toDate();
+  climateResponse.hvacStatus = data.hvacStatus;
+  climateResponse.isHvacRunning = climateResponse.hvacStatus === "ON";
+
+  return climateResponse;
+};
+
+const parseCarwingsStopClimateControlResponse = data => {
+  const climateResponse = parseCarwingsResponse(data);
+  climateResponse.setTimestamp(data);
+
+  climateResponse.hvacStatus = data.hvacStatus;
+  climateResponse.isHvacRunning = climateResponse.hvacStatus === "ON";
+
+  return climateResponse;
 };
 
 const encryptBlowfishECB = (key, text) => {
@@ -175,6 +207,44 @@ const createLeafRemote = (session, leafData) => {
       }
       logger.warn("responseFlag === 0");
       logger.warn(`response: ${JSON.stringify(response, null, 2)}`);
+
+      return undefined;
+    },
+    startClimateControl: async () => {
+      const response = await session.request(
+        "ACRemoteRequest.php",
+        makeRequestParms({})
+      );
+      return response.resultKey;
+    },
+    getStartClimateControlRequest: async resultKey => {
+      // TODO: should be requestWithRetry
+      const response = await session.request(
+        "ACRemoteResult.php",
+        makeRequestParms({ UserId: session.gdcUserId, resultKey })
+      );
+      if (response.responseFlag === "1") {
+        return parseCarwingsStartClimateControlResponse(response);
+      }
+
+      return undefined;
+    },
+    stopClimateControl: async () => {
+      const response = await session.request(
+        "ACRemoteOffRequest.php",
+        makeRequestParms({})
+      );
+      return response.resultKey;
+    },
+    getStopClimateControlRequest: async resultKey => {
+      // TODO: should be requestWithRetry
+      const response = await session.request(
+        "ACRemoteOffResult.php",
+        makeRequestParms({ UserId: session.gdcUserId, resultKey })
+      );
+      if (response.responseFlag === "1") {
+        return parseCarwingsStopClimateControlResponse(response);
+      }
 
       return undefined;
     }
