@@ -55,12 +55,6 @@ import winston from "winston";
 import moment from "moment";
 
 export const logger = winston;
-// // Setup logging
-// export const logger = winston.createLogger({
-//   level: "debug",
-//   format: winston.format.simple(),
-//   transports: [new winston.transports.Console()]
-// });
 
 export const BASE_URL = "https://gdcportalgw.its-mo.com/api_v190426_NE/gdc/";
 export const DEFAULT_REGION_CODE = "NNA";
