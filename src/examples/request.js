@@ -1,7 +1,7 @@
 import winston from "winston";
 import config from "./config";
 
-import { getSession } from "../carwings";
+import { createSession } from "../carwings";
 
 const logger = winston.createLogger({
   level: "debug",
@@ -9,7 +9,7 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
-const session = getSession(config.username, config.password);
+const session = createSession(config.username, config.password);
 session
   .request("InitialApp_v2.php", {
     RegionCode: session.regionCode,
