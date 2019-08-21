@@ -155,6 +155,66 @@ const parseCarwingsStopClimateControlResponse = data => {
   return climateResponse;
 };
 
+const parseCarwingsLatestBatteryStatus = data => {
+  const batteryResponse = parseCarwingsResponse(data.BatteryStatusRecords);
+  batteryResponse.answer = data;
+
+  const records = data.BatteryStatusRecords;
+  const battStatus = records.BatteryStatus;
+  batteryResponse.batteryCapacity = battStatus.BatteryCapacity;
+  batteryResponse.batteryRemainingAmount = battStatus.BatteryRemainingAmount;
+  batteryResponse.chargingStatus = battStatus.BatteryChargingStatus;
+  batteryResponse.isCharging =
+    battStatus.BatteryChargingStatus !== "NOT_CHARGING";
+  batteryResponse.isQuickCharging =
+    battStatus.BatteryChargingStatus === "RAPIDLY_CHARGING";
+  batteryResponse.pluginState = records.PluginState;
+  batteryResponse.isConnected = records.PluginState !== "NOT_CONNECTED";
+  batteryResponse.isConnectedToQuickCharger =
+    records.PluginState === "QC_CONNECTED";
+  batteryResponse.setCruisingRanges(
+    records,
+    "CruisingRangeAcOff",
+    "CruisingRangeAcOn"
+  );
+
+  batteryResponse.timeToFullTrickle = records.TimeRequredToFull
+    ? moment(new Date())
+        .add(records.TimeRequiredToFull, "m")
+        .toDate()
+    : null;
+
+  batteryResponse.timeToFullL2 = records.TimeRequredToFull200
+    ? moment(new Date())
+        .add(records.TimeRequiredToFull200, "m")
+        .toDate()
+    : null;
+
+  batteryResponse.timeToFullL26kw = records.TimeRequredToFull200_6kw
+    ? moment(new Date())
+        .add(records.TimeRequiredToFull200_6kw, "m")
+        .toDate()
+    : null;
+
+  if (batteryResponse.batteryCapacity === 0) {
+    logger.debug(`battery_capacity=0, status=${JSON.stringify(data)}`);
+    batteryResponse.batteryPercent = 0;
+  } else {
+    batteryResponse.batteryPercent =
+      (100 * batteryResponse.batteryRemainingAmount) / 12;
+  }
+
+  // 2016 LEAF has SOC (State Of Charge) in BatteryStatus, a more accurate battery percentage
+  if (battStatus.SOC) {
+    batteryResponse.stateOfCharge = battStatus.SOC.Value;
+    batteryResponse.batteryPercent = batteryResponse.stateOfCharge;
+  } else {
+    batteryResponse.stateOfCharge = null;
+  }
+
+  return batteryResponse;
+};
+
 const encryptBlowfishECB = (key, text) => {
   const cipher = createCipheriv("bf-ecb", key, "");
   let encrypted = cipher.update(text, "utf-8", "base64");
@@ -241,6 +301,19 @@ const createLeafRemote = (session, leafData) => {
       }
 
       return undefined;
+    },
+    getLatestBatteryStatus: async () => {
+      const response = await session.request(
+        "BatteryStatusRecordsRequest.php",
+        makeRequestParms({ TimeFrom: session.boundTime })
+      );
+      if (response.BatteryStatusRecords) {
+        return parseCarwingsLatestBatteryStatus(response);
+      }
+
+      logger.warn("No battery status record returned by server");
+      logger.info(JSON.stringify(response));
+      return null;
     }
   };
   logger.info(`created leafRemote ${leafRemote.vin}/${leafRemote.nickname}`);
