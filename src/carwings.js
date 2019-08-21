@@ -276,7 +276,7 @@ export const createSession = (
 
     const url = BASE_URL + endpoint;
 
-    logger.debug(`invoking carwings API: ${url}`);
+    logger.info(`invoking carwings API: ${url}`);
     logger.debug(`params: ${JSON.stringify(params)}`);
 
     let res;
@@ -355,7 +355,6 @@ export const createSession = (
 
     session.leafRemote = createLeafRemote(session, parsedLogin.leafs[0]);
 
-    logger.debug(`session: ${JSON.stringify(session, null, 2)}`);
     logger.debug(`vin ${parsedLogin.vin}`);
     logger.debug(`nickname ${parsedLogin.nickname}`);
 

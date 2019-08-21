@@ -3,8 +3,9 @@ import config from "./config";
 
 import { createSession } from "../carwings";
 
-const logger = winston.createLogger({
-  level: "debug",
+const logger = winston;
+winston.configure({
+  level: "info",
   format: winston.format.simple(),
   transports: [new winston.transports.Console()]
 });
