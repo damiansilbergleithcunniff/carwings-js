@@ -136,7 +136,7 @@ const encryptBlowfishECB = (key, text) => {
   return encrypted;
 };
 
-const getLeafRemote = (session, leafData) => {
+const createLeafRemote = (session, leafData) => {
   const makeRequestParms = additionalParms => {
     const requestParms = {
       RegionCode: session.regionCode,
@@ -184,7 +184,7 @@ const getLeafRemote = (session, leafData) => {
   return leafRemote;
 };
 
-export const getSession = (
+export const createSession = (
   username,
   password,
   region = DEFAULT_REGION_CODE
@@ -283,7 +283,7 @@ export const getSession = (
     session.tz = parsedLogin.tz;
     session.language = parsedLogin.language;
 
-    session.leafRemote = getLeafRemote(session, parsedLogin.leafs[0]);
+    session.leafRemote = createLeafRemote(session, parsedLogin.leafs[0]);
 
     logger.debug(`session: ${JSON.stringify(session, null, 2)}`);
     logger.debug(`vin ${parsedLogin.vin}`);

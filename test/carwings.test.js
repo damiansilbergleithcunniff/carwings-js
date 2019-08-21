@@ -2,7 +2,7 @@ import sinon from "sinon";
 import axios from "axios";
 import * as carwings from "../src/carwings";
 
-describe("getSession", () => {
+describe("createSession", () => {
   let sandbox;
 
   beforeEach(() => {
@@ -16,14 +16,14 @@ describe("getSession", () => {
 
   describe("session", () => {
     it("sets inputs correctly", () => {
-      const session = carwings.getSession("one", "two", "three");
+      const session = carwings.createSession("one", "two", "three");
       expect(session.username).toBe("one");
       expect(session.password).toBe("two");
       expect(session.regionCode).toBe("three");
       expect(session.loggedIn).toBe(false);
       expect(session.customSessionId).toBe(null);
 
-      const sessionWithDefault = carwings.getSession("four", "five");
+      const sessionWithDefault = carwings.createSession("four", "five");
       expect(sessionWithDefault.regionCode).toBe(carwings.DEFAULT_REGION_CODE);
     });
   });
@@ -33,7 +33,7 @@ describe("getSession", () => {
       it("post raises an exception", async () => {
         sandbox.stub(axios, "post").throws("Error");
 
-        const session = carwings.getSession("name", "pass", "region");
+        const session = carwings.createSession("name", "pass", "region");
         const result = await session.request("ENDPOINT", {});
 
         expect(result).toBeUndefined();
@@ -51,7 +51,7 @@ describe("getSession", () => {
         );
         sandbox.stub(axios, "post").returns(resolved);
 
-        const session = carwings.getSession("name", "pass", "region");
+        const session = carwings.createSession("name", "pass", "region");
         const result = await session.request("ENDPOINT", {});
 
         expect(result).toBeUndefined();
@@ -71,7 +71,7 @@ describe("getSession", () => {
         );
         sandbox.stub(axios, "post").returns(resolved);
 
-        const session = carwings.getSession("name", "pass", "region");
+        const session = carwings.createSession("name", "pass", "region");
         const result = await session.request("ENDPOINT", {});
 
         expect(result).toBeUndefined();
@@ -90,7 +90,7 @@ describe("getSession", () => {
         );
         sandbox.stub(axios, "post").returns(resolved);
 
-        const session = carwings.getSession("name", "pass", "region");
+        const session = carwings.createSession("name", "pass", "region");
         const result = await session.request("ENDPOINT", {});
 
         expect(result).toBeUndefined();
@@ -109,7 +109,7 @@ describe("getSession", () => {
       );
       sandbox.stub(axios, "post").returns(resolved);
 
-      const session = carwings.getSession("name", "pass", "region");
+      const session = carwings.createSession("name", "pass", "region");
       const result = await session.request("ENDPOINT", {});
 
       expect(result).not.toBeUndefined();
@@ -130,7 +130,7 @@ describe("getSession", () => {
       );
       const post = sandbox.stub(axios, "post").returns(resolved);
 
-      const session = carwings.getSession("name", "pass", "region");
+      const session = carwings.createSession("name", "pass", "region");
       await session.request("ENDPOINT", { test: "one" });
 
       expect(post.getCall(0).args[0]).toBe(`${carwings.BASE_URL}ENDPOINT`);
@@ -153,7 +153,7 @@ describe("getSession", () => {
       );
       const post = sandbox.stub(axios, "post").returns(resolved);
 
-      const session = carwings.getSession("name", "pass", "region");
+      const session = carwings.createSession("name", "pass", "region");
       session.customSessionId = "EXISTING_ID";
       await session.request("ENDPOINT", { test: "one" });
 
