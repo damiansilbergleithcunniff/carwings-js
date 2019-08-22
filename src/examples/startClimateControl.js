@@ -1,5 +1,6 @@
 import winston from "winston";
 import config from "./config";
+import { sleep } from "../utils";
 
 import { createSession } from "../carwings";
 
@@ -11,10 +12,6 @@ winston.configure({
   format: winston.format.simple(),
   transports: [new winston.transports.Console()]
 });
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 const session = createSession(config.username, config.password);
 session
@@ -31,6 +28,7 @@ session
     let climateResult = await session.leafRemote.getStartClimateControlRequest(
       resultKey
     );
+    /* eslint-disable no-await-in-loop */
     while (!climateResult) {
       logger.warn(
         `Climate start result not ready yet.  Sleeping: ${POLL_RESULT_INTERVAL /
@@ -52,6 +50,7 @@ session
     let climateResultStop = await session.leafRemote.getStopClimateControlRequest(
       stopResultKey
     );
+    /* eslint-disable no-await-in-loop */
     while (!climateResultStop) {
       logger.warn(
         `Climate stop result not ready yet.  Sleeping: ${POLL_RESULT_INTERVAL /
