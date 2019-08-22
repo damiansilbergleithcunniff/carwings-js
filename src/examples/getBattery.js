@@ -5,7 +5,7 @@ import { sleep } from "../utils";
 import { createSession } from "../carwings";
 
 const POLL_RESULT_INTERVAL = 10000;
-const POLL_LIMIT = 10;
+const POLL_LIMIT = 100;
 
 const logger = winston;
 winston.configure({
@@ -25,9 +25,10 @@ session
 
     logger.warn("Requesting battery status update...");
     const resultKey = await session.leafRemote.requestUpdate();
+    await sleep(1000);
+
     /* eslint-disable no-await-in-loop */
     for (let i = 0; i < POLL_LIMIT; i += 1) {
-      await sleep(1000);
       logger.warn(
         `${i + 1} of ${POLL_LIMIT}: Checking battery status update result...`
       );

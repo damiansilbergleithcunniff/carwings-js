@@ -189,6 +189,8 @@ const parseCarwingsLatestBatteryStatus = data => {
 
   const records = data.BatteryStatusRecords;
   const battStatus = records.BatteryStatus;
+  batteryResponse.timestamp = new Date(records.OperationDateAndTime);
+
   batteryResponse.batteryCapacity = battStatus.BatteryCapacity;
   batteryResponse.batteryRemainingAmount = battStatus.BatteryRemainingAmount;
   batteryResponse.chargingStatus = battStatus.BatteryChargingStatus;
@@ -279,6 +281,7 @@ const createLeafRemote = (session, leafData) => {
     nickname: leafData.nickname,
     boundTime: leafData.boundTime,
     requestUpdate: async () => {
+      logger.warn("Request battery status update...");
       // TODO: should be requestWithRetry
       const response = await session.request(
         "BatteryStatusCheckRequest.php",
@@ -287,6 +290,7 @@ const createLeafRemote = (session, leafData) => {
       return response.resultKey;
     },
     getStatusFromUpdate: async resultKey => {
+      logger.warn("Check battery status update request...");
       // TODO: should be requestWithRetry
       const response = await session.request(
         "BatteryStatusCheckResultRequest.php",
@@ -302,6 +306,7 @@ const createLeafRemote = (session, leafData) => {
       return undefined;
     },
     startClimateControl: async () => {
+      logger.warn("Request climate control START...");
       const response = await session.request(
         "ACRemoteRequest.php",
         makeRequestParms()
@@ -309,6 +314,7 @@ const createLeafRemote = (session, leafData) => {
       return response.resultKey;
     },
     getStartClimateControlRequest: async resultKey => {
+      logger.warn("Checking climate control START request...");
       // TODO: should be requestWithRetry
       const response = await session.request(
         "ACRemoteResult.php",
@@ -321,6 +327,7 @@ const createLeafRemote = (session, leafData) => {
       return undefined;
     },
     stopClimateControl: async () => {
+      logger.warn("Request climate control STOP...");
       const response = await session.request(
         "ACRemoteOffRequest.php",
         makeRequestParms()
@@ -328,6 +335,7 @@ const createLeafRemote = (session, leafData) => {
       return response.resultKey;
     },
     getStopClimateControlRequest: async resultKey => {
+      logger.warn("Checking climate control STOP request...");
       // TODO: should be requestWithRetry
       const response = await session.request(
         "ACRemoteOffResult.php",
@@ -340,6 +348,7 @@ const createLeafRemote = (session, leafData) => {
       return undefined;
     },
     getLatestBatteryStatus: async () => {
+      logger.warn("Getting latest battery status...");
       const response = await session.request(
         "BatteryStatusRecordsRequest.php",
         makeRequestParms({ TimeFrom: session.boundTime })
