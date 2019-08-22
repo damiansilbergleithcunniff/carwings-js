@@ -1,11 +1,15 @@
 import winston from "winston";
 import config from "./config";
+import { sleep } from "../utils";
 
 import { createSession } from "../carwings";
 
+const POLL_RESULT_INTERVAL = 10000;
+const POLL_LIMIT = 10;
+
 const logger = winston;
 winston.configure({
-  level: "info",
+  level: "warn",
   format: winston.format.simple(),
   transports: [new winston.transports.Console()]
 });
@@ -19,6 +23,19 @@ session
   .then(async result => {
     logger.info(`result: ${JSON.stringify(result)}`);
 
+    logger.warn("Requesting battery status update...");
     const resultKey = await session.leafRemote.requestUpdate();
-    await session.leafRemote.getStatusFromUpdate(resultKey);
+    /* eslint-disable no-await-in-loop */
+    for (let i = 0; i < POLL_LIMIT; i += 1) {
+      await sleep(1000);
+      logger.warn(
+        `${i + 1} of ${POLL_LIMIT}: Checking battery status update result...`
+      );
+      const batteryStatus = await session.leafRemote.getStatusFromUpdate(
+        resultKey
+      );
+      logger.warn(`Battery Status: ${JSON.stringify(batteryStatus, null, 2)}`);
+      logger.warn(`Sleeping for ${POLL_RESULT_INTERVAL / 1000} seconds...`);
+      await sleep(POLL_RESULT_INTERVAL);
+    }
   });

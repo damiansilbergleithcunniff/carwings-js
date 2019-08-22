@@ -126,8 +126,36 @@ const parseCarwingsLoginResponse = data => {
 };
 
 const parseCarwingsBatteryStatusResponse = data => {
-  parseCarwingsResponse(data);
-  throw Error(`-- Not implemented -- `);
+  const batteryResponse = parseCarwingsResponse(data);
+  batteryResponse.setTimestamp(data);
+  batteryResponse.setCruisingRanges(data);
+  batteryResponse.answer = data;
+
+  batteryResponse.batteryCapacity = data.batteryCapacity;
+  batteryResponse.batteryDegradation = data.batteryDegradation;
+
+  batteryResponse.isConnected = data.pluginState !== "NOT_CONNECTED";
+  batteryResponse.pluginState = data.pluginState;
+
+  batteryResponse.chargingStatus = data.chargeMode;
+
+  batteryResponse.isCharging = data.charging === "YES";
+
+  batteryResponse.isQuickCharging = data.chargeMode === "RAPIDLY_CHARGING";
+  batteryResponse.isConnectedToQuickCharger =
+    data.pluginState === "QC_CONNECTED";
+
+  batteryResponse.timeToFullTrickle = moment(new Date())
+    .add(data.timeRequiredToFull, "m")
+    .toDate();
+  batteryResponse.timeToFullL2 = moment(new Date())
+    .add(data.timeRequiredToFull200, "m")
+    .toDate();
+  batteryResponse.timeToFullL26kw = moment(new Date())
+    .add(data.timeRequiredToFull200_6kw, "m")
+    .toDate();
+
+  return batteryResponse;
 };
 
 const parseCarwingsStartClimateControlResponse = data => {
@@ -223,16 +251,26 @@ const encryptBlowfishECB = (key, text) => {
 };
 
 const createLeafRemote = (session, leafData) => {
-  const makeRequestParms = additionalParms => {
+  const makeRequestParmsMin = additionalParms => {
     const requestParms = {
       RegionCode: session.regionCode,
-      lg: session.language,
-      DCMID: session.dcmId,
-      VIN: leafData.vin,
-      tz: session.tz
+      VIN: leafData.vin
     };
 
-    return Object.assign(requestParms, additionalParms);
+    return !additionalParms
+      ? requestParms
+      : Object.assign(requestParms, additionalParms);
+  };
+  const makeRequestParms = additionalParms => {
+    const requestParms = makeRequestParmsMin({
+      lg: session.language,
+      DCMID: session.dcmId,
+      tz: session.tz
+    });
+
+    return !additionalParms
+      ? requestParms
+      : Object.assign(requestParms, additionalParms);
   };
 
   const leafRemote = {
@@ -244,7 +282,7 @@ const createLeafRemote = (session, leafData) => {
       // TODO: should be requestWithRetry
       const response = await session.request(
         "BatteryStatusCheckRequest.php",
-        makeRequestParms({ UserId: session.gdcUserId })
+        makeRequestParmsMin()
       );
       return response.resultKey;
     },
@@ -255,19 +293,18 @@ const createLeafRemote = (session, leafData) => {
         makeRequestParms({ resultKey })
       );
       // responseFlag will be "1" if a response has been returned; else "0".
-      // As of Dec 2018 responseFlag is always returning 0!
       if (response.responseFlag === "1") {
         return parseCarwingsBatteryStatusResponse(response);
       }
-      logger.warn("responseFlag === 0");
-      logger.warn(`response: ${JSON.stringify(response, null, 2)}`);
+      logger.info("responseFlag === 0");
+      logger.info(`response: ${JSON.stringify(response, null, 2)}`);
 
       return undefined;
     },
     startClimateControl: async () => {
       const response = await session.request(
         "ACRemoteRequest.php",
-        makeRequestParms({})
+        makeRequestParms()
       );
       return response.resultKey;
     },
@@ -286,7 +323,7 @@ const createLeafRemote = (session, leafData) => {
     stopClimateControl: async () => {
       const response = await session.request(
         "ACRemoteOffRequest.php",
-        makeRequestParms({})
+        makeRequestParms()
       );
       return response.resultKey;
     },
@@ -316,7 +353,7 @@ const createLeafRemote = (session, leafData) => {
       return null;
     }
   };
-  logger.info(`created leafRemote ${leafRemote.vin}/${leafRemote.nickname}`);
+  logger.warn(`created leafRemote ${leafRemote.vin}/${leafRemote.nickname}`);
 
   return leafRemote;
 };
@@ -396,6 +433,7 @@ export const createSession = (
     session.customSessionId = null;
     session.loggedIn = false;
 
+    logger.warn("Logging in to Nissan Servers...");
     const initialAppResponse = await request("InitialApp_v2.php", {
       RegionCode: session.regionCode,
       lg: "en-US"
@@ -419,6 +457,8 @@ export const createSession = (
     session.dcmId = parsedLogin.dcmId;
     session.tz = parsedLogin.tz;
     session.language = parsedLogin.language;
+
+    logger.warn("Login complete.");
 
     session.leafRemote = createLeafRemote(session, parsedLogin.leafs[0]);
 
