@@ -21,16 +21,32 @@ session
     logger.error(`failed: ${er}`);
   })
   .then(async () => {
+    // need to sleep to prevent "race condition"
+    await sleep(1000);
+
     logger.warn("Get battery status before requesting update");
     const initialStatus = await session.leafRemote.getLatestBatteryStatus();
     const initialTime = initialStatus.timestamp;
-    await session.leafRemote.requestUpdate();
+    logger.warn(`Original State: ${JSON.stringify(initialStatus, null, 2)}`);
+
+    // need to sleep to prevent "race condition"
     await sleep(1000);
+    const resultKey = await session.leafRemote.requestUpdate();
 
     /* eslint-disable no-await-in-loop */
     for (let i = 0; i < POLL_LIMIT; i += 1) {
       logger.warn(
         `${i + 1} of ${POLL_LIMIT}: Check if the battery status has updated`
+      );
+      const batteryStatusFromUpdate = await session.leafRemote.getStatusFromUpdate(
+        resultKey
+      );
+      logger.warn(
+        `Update Request Result: ${JSON.stringify(
+          batteryStatusFromUpdate,
+          null,
+          2
+        )}`
       );
       const batteryStatus = await session.leafRemote.getLatestBatteryStatus();
 

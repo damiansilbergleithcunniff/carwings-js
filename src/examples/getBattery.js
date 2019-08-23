@@ -21,6 +21,7 @@ session
     logger.error(`failed: ${er}`);
   })
   .then(async result => {
+    await sleep(1000);
     logger.info(`result: ${JSON.stringify(result)}`);
 
     logger.warn("Requesting battery status update...");
