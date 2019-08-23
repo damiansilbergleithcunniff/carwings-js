@@ -1,4 +1,4 @@
-# carwings-js
+# carwings2-js
 
 An implementation of the carwings API which is used to communicate with the Nissan Leaf.
 
