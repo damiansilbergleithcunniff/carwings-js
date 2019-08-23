@@ -8,7 +8,7 @@ const POLL_RESULT_INTERVAL = 10000;
 
 const logger = winston;
 winston.configure({
-  level: "info",
+  level: "warn",
   format: winston.format.simple(),
   transports: [new winston.transports.Console()]
 });
@@ -21,10 +21,8 @@ session
   })
   .then(async () => {
     // START
-    logger.warn("Requesting climate control start");
     const resultKey = await session.leafRemote.startClimateControl();
 
-    logger.warn("Checking climate start result");
     let climateResult = await session.leafRemote.getStartClimateControlRequest(
       resultKey
     );
@@ -35,7 +33,6 @@ session
           1000} seconds`
       );
       await sleep(POLL_RESULT_INTERVAL);
-      logger.warn("Re-Checking climate start result");
       climateResult = await session.leafRemote.getStartClimateControlRequest(
         resultKey
       );
